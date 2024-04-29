@@ -3,6 +3,10 @@ import cv2
 import numpy as np
 import os
 import cv2.aruco as aruco
+from pykinect2 import PyKinectV2
+from pykinect2 import PyKinectRuntime
+
+import threading
 
 # [8.201776125356415e+02,-0.085438805814383,3.294454919674360e+02;0,8.190036007627443e+02,2.431314948943652e+02;0,0,1]
 # [0.002196074586884,0.703960778981213,-1.335740449221103]
@@ -81,34 +85,93 @@ def generate_work_plane(image_size, marker_size, marker_ids):
     
     return plane
 
+k = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
+
 def capture():
-    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(2, cv2.CAP_DSHOW)
     if not cap.isOpened():
         print("cap not open")
         exit()
 
-    cv2.namedWindow('a')
-    counter = 0
-    path = 'C:\\Users\\96156\\fifa\\pho\\'
+    cv2.namedWindow('d')
+    counter = 1
+    path = 'C:\\Users\\96156\\fifa\\fp\\photo\\depth\\'
     os.makedirs(path, exist_ok= True)
+    last_time = time.time()
 
     while True:
         ret, frame = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-        cv2.imshow('a', frame)
-        if (counter % 200 == 0):
-            cv2.imwrite(path + str(int(counter/200)) + '.jpg', frame)
-
-        counter += 1
-
-        cv2.imshow('a', frame)
+        cv2.imshow('d', frame)
+        if (time.time() - last_time > 1):
+            cv2.imwrite(path + str(counter) + '.jpg', frame)
+            last_time = time.time()
+            counter += 1
 
         if cv2.waitKey(1) == 27:
             break
 
     cv2.destroyAllWindows()
+
+
+def captureKin():
+   
+    cv2.namedWindow("c")
+    cv2.namedWindow("d")
+    pathC = 'C:\\Users\\96156\\fifa\\fp\\photo\\color1\\'
+    pathD = 'C:\\Users\\96156\\fifa\\fp\\photo\\depth1\\'
+    os.makedirs(pathC, exist_ok= True)
+    os.makedirs(pathD, exist_ok= True)
+
+    last_time = time.time()
+    counter = 1
+
+    while True:
+        c = get_last_rbg()
+        c = cv2.flip(c, 1)
+        d = get_last_depth()
+        d = cv2.flip(d, 1)
+
+        if time.time() - last_time > 1:
+            cv2.imwrite(pathC + str(counter) + '.jpg', c)
+            cv2.imwrite(pathD + str(counter) + '.jpg', d)
+            last_time = time.time()
+            counter += 1
+
+        cv2.imshow('c', c)
+        cv2.imshow('d', d)
+        if cv2.waitKey(1) == 27:
+            break
+
+    cv2.destroyAllWindows()
+
+        
+
+
+def get_last_rbg():
+    frame = k.get_last_color_frame()
+    return np.reshape(frame, [1080, 1920, 4])[:, :, 0:3]
+
+def get_last_depth():
+    frame = k.get_last_depth_frame()  
+    frame = frame.astype(np.uint8)
+    frame = np.reshape(frame, [424, 512])   
+    # dep_frame = cv2.flip(dep_frame, 0)
+    # dep_frame = cv2.flip(dep_frame, 1)
+    return frame
+
+def get_last_inf():
+    frame = k.get_last_infrared_frame()
+    # frame = frame.astype(np.uint8)
+    
+    inf_frame = np.reshape(frame, [424, 512])
+    inf_frame = cv2.flip(inf_frame, 1)
+
+    # np.savetxt('D:\\Desktop\\photo\\cancan.txt', dep_frame, fmt = "%d", delimiter = ' ')
+    return inf_frame
+
 
 # # find_active_cameras()
 # # capture()
@@ -129,3 +192,16 @@ def capture():
 
 # # Optionally, save the image to file
 # # cv2.imwrite('work_plane_with_markers.png', work_plane)
+
+# thread1 = threading.Thread(target= capture)
+# thread2 = threading.Thread(target= captureKin)
+
+# thread1.start()
+# thread2.start()
+
+# thread2.join()
+# thread1.join()
+
+# print("1")
+
+captureKin()
