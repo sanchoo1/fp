@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['Pen']
+
+roboflow:
+  workspace: yolov5-h3oo1
+  project: pen-zyj9j
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/yolov5-h3oo1/pen-zyj9j/dataset/1
