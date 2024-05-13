@@ -4,6 +4,8 @@ import os
 from pykinect2 import PyKinectV2
 from pykinect2 import PyKinectRuntime
 
+import cali
+
 class Params:
     def __init__(self) -> None:
         self.d_intrinsics = np.array([[362.4679, 0, 261.4258], [0, 361.1774, 208.1123], [0, 0, 1]])
@@ -42,64 +44,114 @@ def d_2_c(x, y, z, param : Params):
     c_pixel_y = 1066.666666667 / z * c_world_coordinate[1,0] + 960
     return c_pixel_x, c_pixel_y
 
-def get_last_rbg():
-    frame = kinect.get_last_color_frame()
-    return np.reshape(frame, [1080, 1920, 4])[:, :, 0:3]
 
-def get_last_depth():
-    frame = kinect.get_last_infrared_frame()
-    frame = frame.astype(np.uint8)
-    dep_frame = np.reshape(frame, [424, 512])
-    # np.savetxt('D:\\Desktop\\photo\\cancan.txt', dep_frame, fmt = "%d", delimiter = ' ')
-    return cv2.cvtColor(dep_frame, cv2.COLOR_GRAY2RGB)
+def combine(c_frame, d_frame):
+    d_frame = cv2.flip(d_frame, 1)
+    c_frame = cv2.flip(c_frame, 1)
 
-kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
+    dd = cali.drawDepth(d_frame)
+    cv2.imshow('1', dd)
+    alpha_channel = np.full(c_frame.shape[:2], 0, dtype=np.uint8)
+    temp = np.full(c_frame.shape, 0, dtype = np.uint8)
+
+    for row in range(424):
+        for col in range(512):
+            if (d_frame[row][col] <= 50000 and d_frame[row][col]>0):
+                u_f, v_f = d_2_c(row, col, d_frame[row][col], Params())
+                x = int(u_f)
+                y = int(v_f)
+
+                if not (x < 0 or x > 1079 or y > 1910 or y < 0):
+
+                    alpha_channel[x, y] = 200
+                    temp[x, y] = dd[row, col]
+
+    depth_rgba = cv2.merge((temp, alpha_channel))
+
+    if c_frame.shape[2] == 3:
+        c_frame = cv2.cvtColor(c_frame, cv2.COLOR_BGR2BGRA)
+
+    result_image = cv2.addWeighted(c_frame, 1, depth_rgba, 0.5, 0)
+
+    cv2.waitKey(1)
+
+    return result_image
+
+
+def generateD(d_frame):
+    temp_frame = np.full((((1080, 1920, 3))), 0)
+    for row in range(424):
+        for col in range(512):
+            if (d_frame[row][col] <= 50000 and d_frame[row][col]>0):
+                v_f, u_f = d_2_c(row, col, d_frame[row][col], Params())
+                x = int(v_f)
+                y = int(u_f)
+
+                if not (x < 0 or x > 1079 or y > 1910 or y < 0):
+                    temp_frame[x, y] = d_frame[row][col], row, col
+
+    return temp_frame
+
+
+# kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
+
 
 
 # cv2.namedWindow('c')
-# cv2.namedWindow('d')
-# cv2.namedWindow('e')
-counter = 0
-while 1:
+# # cv2.namedWindow('d')
+# # cv2.namedWindow('e')
+# counter = 0
+# while 1:
 
-    c_frame = kinect.get_last_color_frame()
-    c_frame = np.reshape(c_frame, [1080, 1920, 4])[:, :, 0:3]
-    c_frame = cv2.flip(c_frame, 1)
-    combine_frame = c_frame.copy()
-    temp_frame = np.zeros((1080, 1920))
-    d_frame = kinect.get_last_depth_frame()
+#     c_frame = kinect.get_last_color_frame()
+#     c_frame = np.reshape(c_frame, [1080, 1920, 4])[:, :, 0:3]
+#     d_frame = kinect.get_last_depth_frame()
+#     d_frame = np.reshape(d_frame, [424, 512])
 
-    d_frame = np.reshape(d_frame, [424, 512])
-    d_frame = cv2.flip(d_frame, 1)
+#     cc = combine(c_frame, d_frame)
+
+#     pathCom = 'D:\\Desktop\\photocomm\\'
+#     os.makedirs(pathCom, exist_ok = True)
+
+#     cv2.imwrite(pathCom + str(counter) + 'c2d' + '.jpg', cc)
     
-    dd = cv2.cvtColor(d_frame.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+    # c_frame = cv2.flip(c_frame, 1)
+    # combine_frame = c_frame.copy()
 
-    # c_frame = cv2.undistort(c_frame, Params().c_intrinsics, Params().c_distor)
-    # d_frame = cv2.undistort(d_frame, Params().d_intrinsics, Params().d_distor)
-    for row in range(424):
-        for col in range(512):
-             if (d_frame[row][col] <= 50000 and d_frame[row][col]>0):
-                u_f, v_f = d_2_c(row, col, d_frame[row][col], Params())
+    
+
+
+    # d_frame = cv2.flip(d_frame, 1)
+    
+    # dd = cv2.cvtColor(d_frame.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+
+    # temp = d_frame.astype(np.uint8)
+
+    # # c_frame = cv2.undistort(c_frame, Params().c_intrinsics, Params().c_distor)
+    # # d_frame = cv2.undistort(d_frame, Params().d_intrinsics, Params().d_distor)
+    # for row in range(424):
+    #     for col in range(512):
+    #          if (d_frame[row][col] <= 50000 and d_frame[row][col]>0):
+    #             u_f, v_f = d_2_c(row, col, d_frame[row][col], Params())
            
-                temp = d_frame.astype(np.uint8)
-                x = int(u_f)
-                y = int(v_f)
-                z = temp[row][col]
-                # print(str(x) + ' ' + str(y) + ' ' + str(z))
-                if not (x < 0 or x > 1079 or y > 1910 or y < 0):
-                    temp_frame[x , y] = z
-                    combine_frame[x, y] = z
-                    dd[row, col] = c_frame[x, y]
+                
+    #             x = int(u_f)
+    #             y = int(v_f)
+    #             z = temp[row][col]
+    #             # print(str(x) + ' ' + str(y) + ' ' + str(z))
+    #             if not (x < 0 or x > 1079 or y > 1910 or y < 0):
+    #                 temp_frame[x , y] = z
+    #                 combine_frame[x, y] = z
+    #                 dd[row, col] = c_frame[x, y]
 
 
             
-    pathCom = 'D:\\Desktop\\photocom\\'
-    os.makedirs(pathCom, exist_ok = True)        
-    temp_frame = temp_frame.astype(np.uint8)
-    cv2.imwrite(pathCom + str(counter) + 'c2d' + '.jpg', dd)
-    cv2.imwrite(pathCom + str(counter) + '.jpg', cv2.cvtColor(temp_frame, cv2.COLOR_GRAY2RGB))
-    cv2.imwrite(pathCom + str(counter) + 'rpg' + '.jpg', combine_frame)
-    counter += 1
+     
+    # temp_frame = temp_frame.astype(np.uint8)
+    # cv2.imwrite(pathCom + str(counter) + 'c2d' + '.jpg', dd)
+    # cv2.imwrite(pathCom + str(counter) + '.jpg', cv2.cvtColor(temp_frame, cv2.COLOR_GRAY2RGB))
+    # cv2.imwrite(pathCom + str(counter) + 'rpg' + '.jpg', combine_frame)
+    # counter += 1
 
     # cv2.imshow('c', c_frame)
     # cv2.imshow('d', dd)

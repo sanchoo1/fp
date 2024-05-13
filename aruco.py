@@ -86,7 +86,7 @@ def get_camera_pose_from_aruco_markers(dictionary, parameters, frame, camera_mat
     # Predefined positions of markers in world coordinates (modify these based on your setup)
     marker_positions = get_marker_world_positions(marker_length, 0.25)
     # Detect Aruco markers in the frame
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, dictionary, parameters=parameters)
+    corners, ids, rejectedImgPoints = detector.detectMarkers(frame)
     aruco.drawDetectedMarkers(frame, corners, ids)
     all_transforms = []
     temp1 = frame.copy()
@@ -147,37 +147,42 @@ detector = cv2.aruco.ArucoDetector(dictionary, parameters)
 param = cali.Params()
 cameraMatrix, distCoeffs = param.intrinsics, param.distor
 
-counter = 0
+# counter = 0
 
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-if not cap.isOpened():
-    print("cap not open")
-    exit()
+# cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+# if not cap.isOpened():
+#     print("cap not open")
+#     exit()
 
-cv2.namedWindow('1')
-cv2.namedWindow('2')
+# cv2.namedWindow('1')
+# cv2.namedWindow('2')
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         print("Can't receive frame (stream end?). Exiting ...")
+#         break
     
-    # frame = pnp_get_markers_pose(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
-    t = get_camera_pose_from_aruco_markers(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
+#     # frame = pnp_get_markers_pose(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
+#     t = get_camera_pose_from_aruco_markers(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
 
-    if counter % 100 == 0:
-        print (t[0])
+#     if counter % 100 == 0:
+#         print (t[0])
 
-    counter += 1 
+#     counter += 1 
 
-    # display
-    cv2.imshow('1', frame)
+#     # display
+#     cv2.imshow('1', frame)
 
 
-    if cv2.waitKey(1) == ord('q'):
-        break
+#     if cv2.waitKey(1) == ord('q'):
+#         break
+
+
+
+
+
 
 # while True:
 #     ret, frame = cap.read()
@@ -205,5 +210,5 @@ while True:
 #         break
 
 # 释放摄像头资源
-cap.release()
-cv2.destroyAllWindows()
+# cap.release()
+# cv2.destroyAllWindows()

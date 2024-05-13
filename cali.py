@@ -85,7 +85,7 @@ def generate_work_plane(image_size, marker_size, marker_ids):
     
     return plane
 
-k = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
+# k = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
 
 def capture():
     cap = cv2.VideoCapture(2, cv2.CAP_DSHOW)
@@ -116,61 +116,60 @@ def capture():
     cv2.destroyAllWindows()
 
 
-def captureKin():
+# def captureKin():
    
-    cv2.namedWindow("c")
-    cv2.namedWindow("d")
-    pathC = 'C:\\Users\\96156\\fifa\\fp\\photo\\color1\\'
-    pathD = 'C:\\Users\\96156\\fifa\\fp\\photo\\depth1\\'
-    os.makedirs(pathC, exist_ok= True)
-    os.makedirs(pathD, exist_ok= True)
+#     cv2.namedWindow("c")
+#     cv2.namedWindow("d")
+#     pathC = 'C:\\Users\\96156\\fifa\\fp\\photo\\color1\\'
+#     pathD = 'C:\\Users\\96156\\fifa\\fp\\photo\\depth1\\'
+#     os.makedirs(pathC, exist_ok= True)
+#     os.makedirs(pathD, exist_ok= True)
 
-    last_time = time.time()
-    counter = 1
+#     last_time = time.time()
+#     counter = 1
 
-    while True:
-        c = get_last_rbg()
-        c = cv2.flip(c, 1)
-        d = get_last_depth()
-        d = cv2.flip(d, 1)
+#     while True:
+#         c = get_last_rbg()
+#         c = cv2.flip(c, 1)
+#         d = get_last_depth()
+#         d = cv2.flip(d, 1)
 
-        if time.time() - last_time > 1:
-            cv2.imwrite(pathC + str(counter) + '.jpg', c)
-            cv2.imwrite(pathD + str(counter) + '.jpg', d)
-            last_time = time.time()
-            counter += 1
+#         if time.time() - last_time > 1:
+#             cv2.imwrite(pathC + str(counter) + '.jpg', c)
+#             cv2.imwrite(pathD + str(counter) + '.jpg', d)
+#             last_time = time.time()
+#             counter += 1
 
-        cv2.imshow('c', c)
-        cv2.imshow('d', d)
-        if cv2.waitKey(1) == 27:
-            break
+#         cv2.imshow('c', c)
+#         cv2.imshow('d', d)
+#         if cv2.waitKey(1) == 27:
+#             break
 
-    cv2.destroyAllWindows()
+#     cv2.destroyAllWindows()
 
-        
+def drawDepth(depth_image):
+    depth_image = np.clip(depth_image, 50, 5000)
+    minVal = np.min(depth_image)
+    maxVal = np.max(depth_image)
+
+    scaled_depth = ((depth_image - minVal) / (maxVal - minVal) * 255).astype(np.uint8)
+    color_depth = cv2.applyColorMap(scaled_depth, cv2.COLORMAP_JET)
+    # cv2.imshow('Color Depth Image', color_depth)
+    # cv2.waitKey(0)
+
+    return color_depth
 
 
-def get_last_rbg():
-    frame = k.get_last_color_frame()
-    return np.reshape(frame, [1080, 1920, 4])[:, :, 0:3]
-
-def get_last_depth():
-    frame = k.get_last_depth_frame()  
-    frame = frame.astype(np.uint8)
-    frame = np.reshape(frame, [424, 512])   
-    # dep_frame = cv2.flip(dep_frame, 0)
-    # dep_frame = cv2.flip(dep_frame, 1)
-    return frame
-
-def get_last_inf():
-    frame = k.get_last_infrared_frame()
-    # frame = frame.astype(np.uint8)
-    
-    inf_frame = np.reshape(frame, [424, 512])
-    inf_frame = cv2.flip(inf_frame, 1)
-
-    # np.savetxt('D:\\Desktop\\photo\\cancan.txt', dep_frame, fmt = "%d", delimiter = ' ')
-    return inf_frame
+def on_EVENT_LBUTTONDOWN(event, y, x, flags, param):
+    if event == cv2.EVENT_LBUTTONDOWN:
+        print(x, y)
+        # print(param[x][y])
+        z = param[x][y]
+        # print(p_2_w(x, y, z, Params()))
+        x = (x -212)/367.816 * z
+        y = (y -256)/367.816 * z
+        print(x,y,z)
+        cv2.imwrite(path + str(counter) + '.png', get_last_rbg())
 
 
 # # find_active_cameras()
@@ -203,5 +202,3 @@ def get_last_inf():
 # thread1.join()
 
 # print("1")
-
-captureKin()

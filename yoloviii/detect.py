@@ -5,7 +5,7 @@ from pathlib import Path
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
 # Load a  model
-model = YOLO( ROOT / 'best.pt')
+model = YOLO( ROOT / 'best736.pt')
 
 # Open the video
 source = 3
@@ -18,13 +18,13 @@ while cap.isOpened():
 
     if success:
         # Run YOLOv8 inference on the frame
-        results = model(frame)
+        results = model(frame, imgsz = 736)
 
         # Visualize the results on the frame
         annotated_frame = results[0].plot()
 
         # Display the annotated frame
-        cv2.imshow("YOLOv8 Inference", annotated_frame)
+        cv2.imshow("detect", annotated_frame)
 
         # View results
         for r in results:
