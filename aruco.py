@@ -1,7 +1,12 @@
 import cv2
 import cv2.aruco as aruco
-import cali
+import C2D
 import numpy as np
+
+from pykinect2 import PyKinectV2
+from pykinect2 import PyKinectRuntime
+
+import util
 
 
 def invert_transform(R, t):
@@ -80,7 +85,7 @@ def pnp_get_markers_pose(dictionary, parameters, frame, camera_matrix, dist_coef
     return frame
 
 
-def get_camera_pose_from_aruco_markers(dictionary, parameters, frame, camera_matrix, dist_coeffs, marker_length):
+def get_camera_pose_from_aruco_markers(dictionary, parameters, frame, camera_matrix, dist_coeffs, detector, marker_length):
 
     
     # Predefined positions of markers in world coordinates (modify these based on your setup)
@@ -133,51 +138,56 @@ def get_camera_pose_from_aruco_markers(dictionary, parameters, frame, camera_mat
             rvec_wc, _ = cv2.Rodrigues(R_wc)
 
             # Draw the axes at the workspace origin
-            cv2.drawFrameAxes(frame, camera_matrix, dist_coeffs, rvec_wc, t_wc, 0.05)
+            temp1 = cv2.drawFrameAxes(frame, camera_matrix, dist_coeffs, rvec_wc, t_wc, 0.05)
             cv2.imshow('2', temp1)
-            return avg_T_wc, temp1
+            return avg_T_wc  # c = Twc * w,  c = RT_dc * d
         else:
-            return None, None
+            return None
     else:
-        return None, None
+        return None
 
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-parameters = cv2.aruco.DetectorParameters()
-detector = cv2.aruco.ArucoDetector(dictionary, parameters)
-param = cali.Params()
-cameraMatrix, distCoeffs = param.intrinsics, param.distor
-
-# counter = 0
+dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
+parameters = aruco.DetectorParameters()
+detector = aruco.ArucoDetector(dictionary, parameters)
 
 
-# cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-# if not cap.isOpened():
-#     print("cap not open")
-#     exit()
+param = C2D.Params()
+cameraMatrix, distCoeffs = param.c_intrinsics, param.c_distor
 
-# cv2.namedWindow('1')
-# cv2.namedWindow('2')
+counter = 0
 
-# while True:
-#     ret, frame = cap.read()
-#     if not ret:
-#         print("Can't receive frame (stream end?). Exiting ...")
-#         break
+
+k = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth | PyKinectV2.FrameSourceTypes_Color | PyKinectV2.FrameSourceTypes_Infrared)
+
+
+
+cv2.namedWindow('1', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('1', 1920, 1080)
+cv2.namedWindow('2')
+
+while True:
+    c_frame = k.get_last_color_frame()
+    c_frame = np.reshape(c_frame, [1080, 1920, 4])[:, :, 0:3]
+    c_frame = cv2.flip(c_frame, 1)
+    cv2.imshow('1', c_frame)
     
-#     # frame = pnp_get_markers_pose(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
-#     t = get_camera_pose_from_aruco_markers(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
+    aru = util.MyAruco()
+    # frame = pnp_get_markers_pose(dictionary, parameters, frame, cameraMatrix, distCoeffs, 0.032)
+    # t = aru.get_camera_pose_from_aruco_markers(c_frame)
+    t = get_camera_pose_from_aruco_markers(dictionary, parameters, c_frame, param.c_intrinsics, param.c_distor, detector, 0.025)
 
-#     if counter % 100 == 0:
-#         print (t[0])
+    # if counter % 100 == 0:
+    #     print (t[0])
 
-#     counter += 1 
+    # counter += 1 
 
-#     # display
-#     cv2.imshow('1', frame)
+    # display
+    
 
 
-#     if cv2.waitKey(1) == ord('q'):
-#         break
+
+    if cv2.waitKey(1) == ord('q'):
+        break
 
 
 

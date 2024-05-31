@@ -172,7 +172,7 @@ def on_EVENT_LBUTTONDOWN(event, y, x, flags, param):
         cv2.imwrite(path + str(counter) + '.png', get_last_rbg())
 
 
-# # find_active_cameras()
+# find_active_cameras()
 # # capture()
 # # generateMarker()
 
@@ -202,3 +202,4 @@ def on_EVENT_LBUTTONDOWN(event, y, x, flags, param):
 # thread1.join()
 
 # print("1")
+
