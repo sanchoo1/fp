@@ -1,0 +1,7 @@
+train: ../train/images
+val: ../val3/images
+
+nc: 3
+names: ['pencil',
+        'holder',
+        'X']

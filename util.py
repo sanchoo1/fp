@@ -4,37 +4,46 @@ from pykinect2 import PyKinectV2, PyKinectRuntime
 import cv2.aruco as aruco
 from pathlib import Path
 from ultralytics import YOLO
+from scipy.spatial.transform import Rotation as R
 
 class Yolo8:
     def __init__(self):
         FILE = Path(__file__).resolve()
         ROOT = FILE.parents[0]
-        self.model = YOLO( ROOT / 'yoloviii/last1056.pt')     
+        self.model = YOLO( ROOT / 'yoloviii/xxx.pt')     
     
     def annotate(self, frame):
-        results = self.model(frame)
+        cropped = frame[12:1068, 432:1488]
+        results = self.model(cropped)
         annotated_frame = results[0].plot()
         return annotated_frame
 
 
 class MyKinect:
     def __init__(self):
-        self.kinect = PyKinectRuntime.PyKinectRuntime(PyKinectV2.FrameSourceTypes_Depth |
-                                                      PyKinectV2.FrameSourceTypes_Color |
-                                                      PyKinectV2.FrameSourceTypes_Infrared)
-        self.d_intrinsics = np.array([[362.4679, 0, 261.4258], [0, 361.1774, 208.1123], [0, 0, 1]])
-        self.c_intrinsics = np.array([[1038.6, 0, 951.1293], [0, 1038.9, 526.1001], [0, 0, 1]])
+
+        """ self.d_intrinsics_mat = np.array([[362.4679, 0, 261.4258], [0, 361.1774, 208.1123], [0, 0, 1]])
+        self.c_intrinsics_mat = np.array([[1038.6, 0, 951.1293], [0, 1038.9, 526.1001], [0, 0, 1]])
+        self.inv_d_intrinsics_mat = np.array([[0.00275886, 0, -0.72123849],
+                                          [0, 0.00276872, -0.57620521],
+                                          [0, 0, 1]])
+        self.inv_c_intrinsics_mat = np.array([[0.00096283, 0, -0.91578019],
+                                          [0, 0.00096256, -0.50640110],
+                                          [0, 0, 1]]) """
+        self.d_intrinsics = np.array([[367.816, 0, 256], [0, 367.816, 212], [0, 0, 1]])
+        self.c_intrinsics = np.array([[1066.6667, 0, 960], [0, 1066.667, 540], [0, 0, 1]])
+        self.inv_d_intrinsics = np.array([[0.002718, 0, -0.696224], [0, 0.002718, -0.576228], [0, 0, 1]])
+        self.inv_c_intrinsics = np.array([[0.0009375, 0, -0.89999997],
+                                          [0, 0.0009375, -0.50624984],
+                                          [0, 0, 1]])
         """ self.RT_d_to_c = np.array([[0.999820242867276, -0.005590505683472, 0.018117069272502, -51.337633677812520],
                            [0.005420373979096, 0.999940881177058, 0.009426223887326, 3.371261769890467],
                            [-0.018168695570907, -0.009326328165486, 0.999791437302901, 17.491786028014985],
                            [0, 0, 0,1]]) """       
-        self.RT_d_to_c = np.array([[1, 0, 0, 3.37],
-                           [0, 1, 0, -51.34],
-                           [0, 0, 1, -17.49],
-                           [0, 0, 0, 1]])
+
         self.RT_d_to_c_reg = np.array([
-                           [0, 1, 0, -51.34],[1, 0, 0, 3.37],
-                           [0, 0, 1, -17.49],
+                           [1, 0, 0, -51.34],[0, 1, 0, 0],
+                           [0, 0, 1, 0],
                            [0, 0, 0, 1]])
         self.d_distor = np.array([0.1174, 0.2216, 0, 0, 0])
         self.c_distor = np.array([0.0378, 0.1169, 0, 0, 0])
@@ -56,33 +65,70 @@ class MyKinect:
         d_frame = cv2.flip(d_frame, 1)
         return d_frame
     
-    def d_2_c(self, x, y, z):
-        xw = (x - 212) / 367.816 * z
-        yw = (y - 256) / 367.816 * z
-        d_world_coordinate = np.array([[xw], [yw], [z], [1]])
-        c_world_coordinate = np.dot(self.RT_d_to_c, d_world_coordinate)
-        c_pixel_x = 1066.666666667 / z * c_world_coordinate[0,0] + 540
-        c_pixel_y = 1066.666666667 / z * c_world_coordinate[1,0] + 960
-        return c_pixel_x, c_pixel_y
+    def generateD(self, d_frame):
+        temp_frame = np.full((((1080, 1920, 3))), 0)
+
+        for row in range(424):
+            for col in range(512):
+                if (d_frame[row][col] <= 5000 and d_frame[row][col]>0):
+                    u_f, v_f = self.d_to_c(row, col, d_frame[row][col])
+                    x = int(u_f)
+                    y = int(v_f)
+
+                    if not (x < 0 or x >= 1920 or y >= 1080 or y < 0):
+                        temp_frame[y, x] = d_frame[row][col], col, row
+
+        # cv2.imshow("cd", drawDepth(temp_frame[:, :, 0]))
+        # cv2.waitKey(10)
+
+        return temp_frame, drawDepth(temp_frame[:, :, 0])
     
+    # def d_2_c(self, y, x, z):
+    #     yw = (y - 212) / 367.816 * z
+    #     xw = (x - 256) / 367.816 * z
+    #     d_world_coordinate = np.array([[xw], [yw], [z], [1]])
+    #     c_world_coordinate = np.dot(self.RT_d_to_c_reg, d_world_coordinate)
+    #     c_pixel_y = 1066.666666667 / z * c_world_coordinate[1,0] + 540
+    #     c_pixel_x = 1066.666666667 / z * c_world_coordinate[0,0] + 960
+    #     return c_pixel_x, c_pixel_y
+    
+    def d_to_c(self, y, x, z):
+        d_camera_coordinate = np.vstack((self.inv_d_intrinsics @ np.array([[x], [y], [1]]) * z, [1]))
+        c_camera_coordinate = np.dot(self.RT_d_to_c_reg, d_camera_coordinate)
+        c_camera_coordinate = c_camera_coordinate[:3]
+        c_pixel = self.c_intrinsics @ c_camera_coordinate / z
+        return c_pixel[0], c_pixel[1]
+
+    
+    def getPosition(self, d_camera_coordinate, RT):
+        # print(d_camera_coordinate)
+
+        c_cam = self.RT_d_to_c_reg @ d_camera_coordinate
+        world_Pos = np.linalg.inv(RT) @ c_cam
+        return world_Pos
+    
+    def getCameraCoo(self, array):
+        z, x, y = array.tolist()
+        d_camera_coordinate = np.vstack((self.inv_d_intrinsics @ np.array([[x], [y], [1]]) * z, [1]))
+        return d_camera_coordinate
+
 class MyAruco:
-    def __init__(self):
-        param = MyKinect()
+    def __init__(self, param):
         self.cameraMatrix, self.distCoeffs = param.c_intrinsics, param.c_distor
 
         self.dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
         self.parameters = aruco.DetectorParameters()
         self.detector = aruco.ArucoDetector(self.dictionary, self.parameters)
 
-    def get_marker_world_positions(self, marker_size, layout_size):
+    def get_marker_world_positions(self, marker_size, length, width):
         """Calculate world positions of markers based on layout size and marker size."""
-        half_layout = layout_size / 2
+
         half_marker = marker_size / 2
         return {
-            101: np.array([-half_layout + half_marker,  half_layout - half_marker, 0]), # top left
-            102: np.array([ half_layout - half_marker,  half_layout - half_marker, 0]), # top right
-            103: np.array([-half_layout - half_marker, -half_layout + half_marker, 0]), # lower left
-            104: np.array([ half_layout + half_marker, -half_layout + half_marker, 0]), # lower right
+            101: np.array([-length / 2 + half_marker,  width / 2 - half_marker, 0]), # top left
+            102: np.array([ length / 2 - half_marker,  width / 2 - half_marker, 0]), # top right
+            103: np.array([-length / 2 + half_marker, -width / 2 + half_marker, 0]), # lower left
+            104: np.array([ length / 2 - half_marker, -width / 2 + half_marker, 0]), # lower right
         }
     
     def detected(self, frame):
@@ -90,10 +136,10 @@ class MyAruco:
         aruco.drawDetectedMarkers(frame, corners, ids)
         return corners, ids, frame
 
-    def get_camera_pose_from_aruco_markers(self, frame, marker_size=0.022):
+    def get_camera_pose_from_aruco_markers(self, frame, marker_size=60):
 
         # Predefined positions of markers in world coordinates (modify these based on your setup)
-        marker_positions = self.get_marker_world_positions(marker_size, 0.18)
+        marker_positions = self.get_marker_world_positions(marker_size, 450, 300)
         # Detect Aruco markers in the frame
         corners, ids, frame = self.detected(frame)
         
@@ -132,30 +178,44 @@ class MyAruco:
                     T_wc = np.dot(T_mc, np.linalg.inv(T_mw))  # World to camera transformation matrix
                     all_transforms.append(T_wc)
 
-            # Optional: Compute average transformation from world origin to camera
             if all_transforms:
-                avg_T_wc = np.mean(np.stack(all_transforms), axis=0)
+                # 将所有旋转矩阵转换为四元数
+                quaternions = [R.from_matrix(T[:3, :3]).as_quat() for T in all_transforms]
 
-                # Extract rotation vector and translation vector from average transformation matrix
-                R_wc = avg_T_wc[:3, :3]
-                t_wc = avg_T_wc[:3, 3].reshape((3, 1))
-                rvec_wc, _ = cv2.Rodrigues(R_wc)
+                # 平均四元数
+                avg_quat = np.mean(quaternions, axis=0)
+                avg_quat /= np.linalg.norm(avg_quat)  # 归一化
+
+                # 将平均四元数转换回旋转矩阵
+                avg_R_wc = R.from_quat(avg_quat).as_matrix()
+
+                # 平均平移向量
+                avg_t_wc = np.mean([T[:3, 3] for T in all_transforms], axis=0)
+
+                # 重新构建平均变换矩阵
+                avg_T_wc = np.eye(4)
+                avg_T_wc[:3, :3] = avg_R_wc
+                avg_T_wc[:3, 3] = avg_t_wc
+
+                # 提取旋转向量和平移向量
+                rvec_wc, _ = cv2.Rodrigues(avg_R_wc)
+                t_wc = avg_t_wc.reshape((3, 1))
+                
+                # avg_T_wc = np.mean(np.stack(all_transforms), axis=0)
+
+                # # Extract rotation vector and translation vector from average transformation matrix
+                # R_wc = avg_T_wc[:3, :3]
+                # t_wc = avg_T_wc[:3, 3].reshape((3, 1))
+                # rvec_wc, _ = cv2.Rodrigues(R_wc)
 
                 # Draw the axes at the workspace origin
-                temp1 = cv2.drawFrameAxes(frame, self.cameraMatrix, self.distCoeffs, rvec_wc, t_wc, 0.05)
+                temp1 = cv2.drawFrameAxes(frame, self.cameraMatrix, self.distCoeffs, rvec_wc, t_wc, 50)
                 # cv2.imshow('2', temp1)
                 return avg_T_wc, temp1  # c = Twc * w,  c = RT_dc * d
             else:
                 return None, None
         else:
             return None, None
-        
-def getCameraCoo(array):
-    z, x, y = array.tolist()
-    yw = (x - 212) / 367.816 * z
-    xw = (y - 256) / 367.816 * z
-    d_camera_coordinate = np.array([[xw], [yw], [z], [1]])
-    return d_camera_coordinate
 
 def convert_to_right_hand(RT):
     R = RT[:3, :3]
@@ -170,15 +230,6 @@ def convert_to_right_hand(RT):
     
     return RT
 
-def getPosition(d_camera_coordinate, RT, param : MyKinect):
-    print(d_camera_coordinate)
-    RT[:3, 3] *= 1000
-    print(RT)
-
-    c_cam = param.RT_d_to_c_reg @ d_camera_coordinate
-    world_Pos = np.linalg.inv(RT) @ c_cam
-    return world_Pos
-
 
 def spiral_search(d_frame, start_x, start_y, max_radius=10):
     # Initialize movement directions (right, down, left, up)
@@ -192,9 +243,9 @@ def spiral_search(d_frame, start_x, start_y, max_radius=10):
     while True:
         for _ in range(step_count):
             # Check boundaries
-            if 0 <= y < 1920 and 0 <= x < 1080:
-                if d_frame[x, y, 0] != 0:  # Check for valid depth
-                    return x, y, d_frame[x, y]
+            if 0 <= x < 1920 and 0 <= y < 1080:
+                if d_frame[y, x, 0] != 0:  # Check for valid depth
+                    return x, y, d_frame[y, x]
 
             # Move to next position in the current direction
             x += directions[current_direction_index][0]
@@ -219,32 +270,21 @@ def spiral_search(d_frame, start_x, start_y, max_radius=10):
     return None
 
 
-
-def generateD(d_frame):
-    temp_frame = np.full((((1080, 1920, 3))), 0)
-    k = MyKinect()
-    for row in range(424):
-        for col in range(512):
-            if (d_frame[row][col] <= 50000 and d_frame[row][col]>0):
-                v_f, u_f = k.d_2_c(row, col, d_frame[row][col])
-                x = int(v_f)
-                y = int(u_f)
-
-                if not (x < 0 or x > 1055 or y > 1055 or y < 0):
-                    temp_frame[x, y] = d_frame[row][col], row, col
-
-    return temp_frame
-
 def drawDepth(depth_image):
-    depth_image = np.clip(depth_image, 50, 5000)
+    depth_image = np.clip(depth_image, 50, 2000)
+
+    depth_image = np.nan_to_num(depth_image, nan=50, posinf=2000, neginf=50)
     minVal = np.min(depth_image)
     maxVal = np.max(depth_image)
 
-    scaled_depth = ((depth_image - minVal) / (maxVal - minVal) * 255).astype(np.uint8)
+
+    if minVal == maxVal:
+        scaled_depth = np.zeros(depth_image.shape, dtype=np.uint8)
+    else:
+        scaled_depth = ((depth_image - minVal) / (maxVal - minVal) * 255).astype(np.uint8)
+    
     color_depth = cv2.applyColorMap(scaled_depth, cv2.COLORMAP_JET)
     # cv2.imshow('Color Depth Image', color_depth)
     # cv2.waitKey(0)
 
     return color_depth
-
-

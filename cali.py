@@ -14,8 +14,8 @@ import threading
 
 class Params:
     def __init__(self) -> None:
-        self.intrinsics = np.array([[820.177613, -0.085439, 329.445492], [0, 819.003601, 243.131495], [0, 0, 1]])
-        self.distor = np.array([0.002196, 0.703961, 0.000977, 0.000463, -1.335740])
+        self.c_intrinsics = np.array([[820.177613, -0.085439, 329.445492], [0, 819.003601, 243.131495], [0, 0, 1]])
+        self.c_distor = np.array([0.002196, 0.703961, 0.000977, 0.000463, -1.335740])
 
 
 def find_active_cameras(limit=10):
@@ -62,7 +62,7 @@ def generate_work_plane(image_size, marker_size, marker_ids):
     :param marker_ids: List of four marker IDs for the corners
     :return: Image with Aruco markers
     """
-    if len(marker_ids) != 4:
+    if len(marker_ids) != 6:
         raise ValueError("Four marker IDs are required.")
     
     # Create a white background image
@@ -71,8 +71,10 @@ def generate_work_plane(image_size, marker_size, marker_ids):
     # Marker positions (top-left corners)
     positions = [
         (0, 0),  # Top-left corner
+        ((image_size - marker_size) / 2, 0), # top-mid
         (image_size - marker_size, 0),  # Top-right corner
         (0, image_size - marker_size),  # Bottom-left corner
+        ((image_size - marker_size) / 2, image_size - marker_size), #bottpm - mid
         (image_size - marker_size, image_size - marker_size)  # Bottom-right corner
     ]
     
@@ -176,21 +178,21 @@ def on_EVENT_LBUTTONDOWN(event, y, x, flags, param):
 # # capture()
 # # generateMarker()
 
-# # Parameters
-# image_size = 800  # Size of the work plane image in pixels
-# marker_size = 100  # Size of each Aruco marker in pixels
-# marker_ids = [101, 102, 103, 104]  # Unique IDs for each marker
+# Parameters
+image_size = 800  # Size of the work plane image in pixels
+marker_size = 250  # Size of each Aruco marker in pixels
+marker_ids = [101, 102, 103, 104, 105, 106]  # Unique IDs for each marker
 
-# # Generate the work plane image
-# work_plane = generate_work_plane(image_size, marker_size, marker_ids)
+# Generate the work plane image
+work_plane = generate_work_plane(image_size, marker_size, marker_ids)
 
 # # Display the image
 # cv2.imshow('Work Plane with Aruco Markers', work_plane)
 # cv2.waitKey(0)
 # # cv2.destroyAllWindows()
 
-# # Optionally, save the image to file
-# # cv2.imwrite('work_plane_with_markers.png', work_plane)
+# Optionally, save the image to file
+cv2.imwrite('work_plane_with_markers.png', work_plane)
 
 # thread1 = threading.Thread(target= capture)
 # thread2 = threading.Thread(target= captureKin)

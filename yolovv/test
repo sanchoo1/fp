@@ -1,9 +1,0 @@
-import torch
-
-print(torch.cuda.is_available())
-print(torch.__version__)
-print(torch.version.cuda)
-
-x = torch.tensor([1.0, 2.0, 3.0]).cuda()
-y = torch.tensor([1.0, 2.0, 3.0]).cuda()
-print(x + y)

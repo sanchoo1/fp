@@ -5,10 +5,10 @@ from pathlib import Path
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
 # Load a  model
-model = YOLO( ROOT / 'best1056.pt')
+model = YOLO( ROOT / 'xxx.pt')
 
 # Open the video
-source = 2
+source = 0
 
 # s = cv2.imread('C:/Users/96156/Desktop/hd.jpg')
 
